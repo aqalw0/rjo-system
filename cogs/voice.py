@@ -25,26 +25,31 @@ class VoiceLogger(commands.Cog):
                     "time": entry.created_at
                 })
 
+    # ✅ النسخة الصحيحة 100% — إصلاح الميوت/دفن
     async def get_executor(self, member, attribute, expected_value):
         await asyncio.sleep(1)
         now = discord.utils.utcnow()
+
         async for entry in member.guild.audit_logs(limit=10, action=discord.AuditLogAction.member_update):
             if entry.target.id != member.id:
                 continue
 
-            changes = entry.changes
+            before = entry.before
+            after = entry.after
 
-            if isinstance(changes, list):
-                for change in changes:
-                    if hasattr(change, "attribute") and change.attribute == attribute and change.after == expected_value:
+            # mute
+            if attribute == "mute":
+                if hasattr(before, "mute") and hasattr(after, "mute"):
+                    if before.mute != after.mute and after.mute == expected_value:
                         if abs((now - entry.created_at).total_seconds()) < 10:
                             return entry.user
 
-            elif isinstance(changes, dict):
-                change = changes.get(attribute)
-                if change and change.after == expected_value:
-                    if abs((now - entry.created_at).total_seconds()) < 10:
-                        return entry.user
+            # deaf
+            if attribute == "deaf":
+                if hasattr(before, "deaf") and hasattr(after, "deaf"):
+                    if before.deaf != after.deaf and after.deaf == expected_value:
+                        if abs((now - entry.created_at).total_seconds()) < 10:
+                            return entry.user
 
         return None
 
@@ -78,7 +83,7 @@ class VoiceLogger(commands.Cog):
                 embed.set_thumbnail(url="https://imgur.com/JAdNhul.png")
                 await log_channel.send(embed=embed)
 
-            # خروج من الروم (عادي أو طرد)
+            # خروج من الروم
             elif before.channel and not after.channel:
                 await asyncio.sleep(1)
                 await self.update_disconnect_log(member.guild)
