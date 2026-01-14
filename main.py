@@ -3,6 +3,19 @@ from discord.ext import commands
 import os
 import config
 import asyncio
+import threading
+import socket
+
+# 🔧 Fake TCP server for Koyeb health check
+def fake_server():
+    s = socket.socket()
+    s.bind(('0.0.0.0', 8000))
+    s.listen(1)
+    while True:
+        conn, addr = s.accept()
+        conn.close()
+
+threading.Thread(target=fake_server, daemon=True).start()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -11,7 +24,6 @@ intents.members = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix=config.PREFIX, intents=intents)
-
 
 @bot.event
 async def on_ready():
@@ -27,7 +39,6 @@ async def load_extensions():
                 print(f"✅ Loaded: {filename}")
             except Exception as e:
                 print(f"❌ Failed to load {filename}: {e}")
-                
 
 async def main():
     await load_extensions()
