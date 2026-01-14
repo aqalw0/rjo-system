@@ -21,7 +21,6 @@ class Commands(commands.Cog):
             author = message.author
             guild = message.guild
 
-            # 🔥 الآن فقط اللي عنده manage_messages يقدر يمسح
             if not (
                 author.id == guild.owner_id or
                 author.guild_permissions.administrator or
@@ -50,9 +49,8 @@ class Commands(commands.Cog):
         #        أمر "رول"
         # ============================
         if parts[0] == "رول" and len(parts) >= 3:
-            ctx = await self.bot.get_context(message)
-
             try:
+                ctx = await self.bot.get_context(message)
                 member = await commands.MemberConverter().convert(ctx, parts[1])
                 role_name = " ".join(parts[2:])
                 role = discord.utils.get(message.guild.roles, name=role_name)
@@ -63,13 +61,12 @@ class Commands(commands.Cog):
                 author = message.author
                 guild = message.guild
 
-                # 🔥 الآن فقط اللي عنده manage_roles يقدر يستخدم الأمر
-                has_permission = (
+                # 🔥 فقط اللي عنده manage_roles
+                if not (
                     author.id == guild.owner_id or
                     author.guild_permissions.administrator or
                     author.guild_permissions.manage_roles
-                )
-                if not has_permission:
+                ):
                     return
 
                 # رتبة الشخص أعلى من الرتبة المطلوبة
@@ -97,9 +94,7 @@ class Commands(commands.Cog):
                 except:
                     pass
 
-        # ============================
-        #  🔥 أهم سطر — يسمح للأوامر بالعمل
-        # ============================
+        # 👇 مهم جدًا — يسمح للأوامر العادية بالعمل
         await self.bot.process_commands(message)
 
 
