@@ -21,6 +21,7 @@ class Commands(commands.Cog):
             author = message.author
             guild = message.guild
 
+            # 🔥 فقط Owner + Admin + Manage Messages
             if not (
                 author.id == guild.owner_id or
                 author.guild_permissions.administrator or
@@ -61,7 +62,7 @@ class Commands(commands.Cog):
                 author = message.author
                 guild = message.guild
 
-                # 🔥 فقط اللي عنده manage_roles
+                # 🔥 Owner + Admin + Manage Roles
                 if not (
                     author.id == guild.owner_id or
                     author.guild_permissions.administrator or
@@ -69,17 +70,32 @@ class Commands(commands.Cog):
                 ):
                     return
 
-                # رتبة الشخص أعلى من الرتبة المطلوبة
-                author_top = max((r.position for r in author.roles), default=0)
-                if author_top <= role.position:
-                    return
+                # ============================
+                #   🔥 شرط الرتبة الصحيح
+                # ============================
 
-                # البوت يقدر يعطي/يشيل الرتبة
+                # Owner → يتجاوز كل شيء
+                if author.id == guild.owner_id:
+                    pass
+
+                # Admin → يتجاوز شرط الرتبة
+                elif author.guild_permissions.administrator:
+                    pass
+
+                # Manage Roles فقط → لازم رتبته أعلى
+                else:
+                    author_top = max((r.position for r in author.roles), default=0)
+                    if author_top <= role.position:
+                        return
+
+                # 🔥 البوت لازم يكون رتبته أعلى من الرتبة المطلوبة
                 bot_top = guild.me.top_role.position
                 if role.position >= bot_top:
                     return
 
-                # إضافة/إزالة الرتبة
+                # ============================
+                #   إضافة / إزالة الرتبة
+                # ============================
                 if role in member.roles:
                     await member.remove_roles(role, reason=f"تم إزالة الرتبة بواسطة {author}")
                 else:
@@ -94,7 +110,9 @@ class Commands(commands.Cog):
                 except:
                     pass
 
-        # 👇 مهم جدًا — يسمح للأوامر العادية بالعمل
+        # ============================
+        #  السماح للأوامر العادية بالعمل
+        # ============================
         await self.bot.process_commands(message)
 
 
