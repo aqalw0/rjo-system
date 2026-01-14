@@ -21,9 +21,12 @@ class JailReasonSelect(discord.ui.Select):
         if interaction.user != self.ctx.author:
             await interaction.response.send_message("**❌ هذا الخيار مو لك.**", ephemeral=True)
             return
+
         reason = self.values[0]
         await self.ctx.message.add_reaction("✅")
         await interaction.message.delete()
+
+        # 🔥 إصلاح المشكلة هنا
         await jail_logic(self.ctx, self.member, reason)
 
 class CancelButton(discord.ui.Button):
@@ -53,8 +56,20 @@ class JailView(discord.ui.View):
 
 async def jail_logic(ctx, member: discord.Member, reason: str):
     guild = ctx.guild
-    cog = ctx.bot.get_cog("Jail")
 
+    # 🔥 إصلاح المشكلة: ضمان إيجاد الكوغ الصحيح
+    cog = ctx.bot.get_cog("Jail")
+    if cog is None:
+        for loaded in ctx.bot.cogs.values():
+            if isinstance(loaded, Jail):
+                cog = loaded
+                break
+
+    if cog is None:
+        print("[ERROR] Jail cog not found")
+        return
+
+    # صلاحيات
     if not (
         ctx.author.id == guild.owner_id or
         ctx.author.guild_permissions.administrator or
@@ -70,6 +85,7 @@ async def jail_logic(ctx, member: discord.Member, reason: str):
             await ctx.reply("**❌ لا يمكنك سجن عضو نفس أو أعلى منك.**", mention_author=False)
             return
 
+    # إنشاء رتبة السجن إذا غير موجودة
     prison_role = discord.utils.get(guild.roles, name=JAIL_ROLE_NAME)
     if not prison_role:
         prison_role = await guild.create_role(
@@ -86,19 +102,23 @@ async def jail_logic(ctx, member: discord.Member, reason: str):
                 speak=False
             )
 
+    # حفظ الرتب
     roles_to_remove = [role for role in member.roles if role != guild.default_role and role != prison_role]
     cog.previous_roles[member.id] = roles_to_remove
     cog.previous_reasons[member.id] = reason
 
+    # إزالة الرتب وإضافة السجن
     await member.remove_roles(*roles_to_remove, reason="سجن العضو")
     await member.add_roles(prison_role, reason="سجن العضو")
 
+    # طرده من الروم الصوتي
     if member.voice and member.voice.channel:
         try:
             await member.move_to(None)
         except Exception as e:
             print(f"[ERROR] فشل طرد العضو من الروم الصوتي: {e}")
 
+    # إنشاء روم السجن إذا غير موجود
     jail_channel = discord.utils.get(guild.text_channels, name=JAIL_CHANNEL_NAME)
     if not jail_channel:
         overwrites = {
@@ -107,6 +127,7 @@ async def jail_logic(ctx, member: discord.Member, reason: str):
         }
         jail_channel = await guild.create_text_channel(JAIL_CHANNEL_NAME, overwrites=overwrites)
 
+    # إرسال لوق السجن
     log_channel = discord.utils.get(guild.text_channels, name=PRISON_LOG_CHANNEL)
     if log_channel:
         message_link = f"https://discord.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}"
@@ -229,7 +250,7 @@ class Jail(commands.Cog):
                     message.author.guild_permissions.administrator or
                     any(role.name in ALLOWED_ROLES for role in message.author.roles)
                 ):
-                    return  # تجاهل بصمت إذا ما عنده صلاحية
+                    return
 
                 view = JailView(ctx, member)
                 msg = await message.channel.send(
