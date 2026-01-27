@@ -3,7 +3,6 @@ from discord.ext import commands
 import datetime
 import asyncio
 
-ALLOWED_ROLES = ["Superior","Sentinal"]
 JAIL_ROLE_NAME = "Prison"
 JAIL_CHANNEL_NAME = "السجن"
 PRISON_LOG_CHANNEL = "prison-logs"
@@ -55,20 +54,18 @@ async def jail_logic(ctx, member: discord.Member, reason: str):
     guild = ctx.guild
     cog = ctx.bot.get_cog("Jail")
 
+    # السماح للمالك + الأدمن + من يملك Timeout Members
     if not (
         ctx.author.id == guild.owner_id or
         ctx.author.guild_permissions.administrator or
-        any(role.name in ALLOWED_ROLES for role in ctx.author.roles)
+        ctx.author.guild_permissions.moderate_members
     ):
+        await ctx.reply("**❌ ما عندك صلاحية تستخدم هذا الأمر.**", mention_author=False)
         return
 
-    if member.id in [guild.owner_id, ctx.author.id, ctx.bot.user.id]:
+    # منع سجن البوت فقط
+    if member.id == ctx.bot.user.id:
         return
-
-    if ctx.author.id != guild.owner_id:
-        if member.top_role.position >= ctx.author.top_role.position:
-            await ctx.reply("**❌ لا يمكنك سجن عضو نفس أو أعلى منك.**", mention_author=False)
-            return
 
     prison_role = discord.utils.get(guild.roles, name=JAIL_ROLE_NAME)
     if not prison_role:
@@ -137,12 +134,17 @@ class Jail(commands.Cog):
         guild = ctx.guild
         prison_role = discord.utils.get(guild.roles, name=JAIL_ROLE_NAME)
 
-        if not prison_role or prison_role not in member.roles:
-            await ctx.reply("**❌ العضو غير مسجون أو رتبة السجن غير موجودة.**", mention_author=False)
+        # نفس شرط السجن
+        if not (
+            ctx.author.id == guild.owner_id or
+            ctx.author.guild_permissions.administrator or
+            ctx.author.guild_permissions.moderate_members
+        ):
+            await ctx.reply("**❌ ما عندك صلاحية تستخدم هذا الأمر.**", mention_author=False)
             return
 
-        if ctx.me.top_role.position <= member.top_role.position:
-            await ctx.reply("**❌ لا يمكنني الإفراج عن عضو رتبته أعلى مني.**", mention_author=False)
+        if not prison_role or prison_role not in member.roles:
+            await ctx.reply("**❌ العضو غير مسجون أو رتبة السجن غير موجودة.**", mention_author=False)
             return
 
         await member.remove_roles(prison_role, reason="إفراج")
@@ -222,14 +224,17 @@ class Jail(commands.Cog):
         if content.startswith("سجن") and len(parts) >= 2:
             try:
                 member = await commands.MemberConverter().convert(ctx, parts[1])
-                if member.id == message.author.id or member.id == ctx.bot.user.id:
-                    return
+
+                # نفس شرط السجن
                 if not (
                     message.author.id == message.guild.owner_id or
                     message.author.guild_permissions.administrator or
-                    any(role.name in ALLOWED_ROLES for role in message.author.roles)
+                    message.author.guild_permissions.moderate_members
                 ):
-                    return  # تجاهل بصمت إذا ما عنده صلاحية
+                    return
+
+                if member.id == ctx.bot.user.id:
+                    return
 
                 view = JailView(ctx, member)
                 msg = await message.channel.send(
